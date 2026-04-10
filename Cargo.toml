@@ -7,6 +7,10 @@ description = "Cornerstone types for the Philharmonic workflow orchestration sys
 license = "Apache-2.0 OR MPL-2.0"
 repository = "https://github.com/metastable-void/philharmonic-types"
 readme = "README.md"
+rust-version = "1.85"
+
+keywords = ["uuid", "content-addressed", "workflow", "philharmonic"]
+categories = ["data-structures", "encoding"]
 
 [dependencies]
 hex = "0.4"
