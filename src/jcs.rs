@@ -34,11 +34,10 @@ impl CanonicalJson {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum CanonError {
     #[error("invalid JSON: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("canonicalization failed: {0}")]
-    Canon(String),
 }
 
 impl Serialize for CanonicalJson {
