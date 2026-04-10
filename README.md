@@ -1,5 +1,10 @@
 # philharmonic-types
 
+Cornerstone types for the Philharmonic workflow orchestration system:
+content-addressed JSON, phantom-typed UUID identities, SHA-256 hashes,
+and millis-since-epoch timestamps. Used by `philharmonic-*` crates
+as their shared vocabulary.
+
 ## License
 
 **This crate is dual-licensed under `Apache-2.0 OR MPL-2.0`**;
