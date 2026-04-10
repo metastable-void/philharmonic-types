@@ -3,6 +3,8 @@ name = "philharmonic-types"
 version = "0.1.0"
 edition = "2024"
 
+license = "Apache-2.0 OR MPL-2.0"
+
 [dependencies]
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
