@@ -1,4 +1,3 @@
-
 use crate::Sha256;
 
 use serde::{Deserialize, Serialize};
@@ -23,8 +22,12 @@ impl CanonicalJson {
         Self::from_value(&v)
     }
 
-    pub fn as_bytes(&self) -> &[u8] { &self.0 }
-    pub fn into_bytes(self) -> Vec<u8> { self.0 }
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.0
+    }
 
     pub fn hash(&self) -> Sha256 {
         Sha256::of(&self.0)

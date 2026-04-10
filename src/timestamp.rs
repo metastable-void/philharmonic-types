@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -13,5 +12,7 @@ impl UnixMillis {
         Self(d.as_millis() as i64)
     }
 
-    pub fn as_i64(&self) -> i64 { self.0 }
+    pub fn as_i64(&self) -> i64 {
+        self.0
+    }
 }

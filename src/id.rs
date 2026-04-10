@@ -14,10 +14,10 @@ const KIND_PUBLIC: u8 = 1;
 #[repr(transparent)]
 #[serde(transparent)]
 /// `KIND` is one of
-/// 
+///
 /// * `KIND_INTERNAL` (UUIDv7, for time-ordered internal addressing), or
 /// * `KIND_PUBLIC` (UUIDv4, for opaque external references);
-/// 
+///
 /// use the `InternalId<T>` and `PublicId<T>` aliases
 /// rather than naming `Id<T, KIND>` directly.
 pub struct Id<T: ?Sized, const KIND: u8> {
