@@ -1,12 +1,11 @@
 use crate::Sha256;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 
 use serde_jcs as jcs;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
-#[serde(transparent)]
 pub struct CanonicalJson(Vec<u8>);
 
 impl CanonicalJson {
@@ -40,4 +39,23 @@ pub enum CanonError {
     Json(#[from] serde_json::Error),
     #[error("canonicalization failed: {0}")]
     Canon(String),
+}
+
+impl Serialize for CanonicalJson {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        // Parse the canonical bytes back into a Value, then serialize that.
+        // The bytes are guaranteed valid JSON by construction.
+        let v: serde_json::Value = serde_json::from_slice(&self.0)
+            .map_err(serde::ser::Error::custom)?;
+        v.serialize(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for CanonicalJson {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // Deserialize as a Value, then canonicalize through from_value,
+        // which enforces the invariant.
+        let v = serde_json::Value::deserialize(d)?;
+        Self::from_value(&v).map_err(serde::de::Error::custom)
+    }
 }
