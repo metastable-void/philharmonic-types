@@ -1,4 +1,6 @@
-use crate::Sha256;
+use std::borrow::Cow;
+
+use crate::{Content, Sha256};
 
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
 
@@ -28,8 +30,19 @@ impl CanonicalJson {
         self.0
     }
 
-    pub fn hash(&self) -> Sha256 {
-        Sha256::of(&self.0)
+    pub fn hash(&self) -> Sha256<Self> {
+        Sha256::of(&self)
+    }
+}
+
+impl Content for CanonicalJson {
+    type Error = CanonError;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes)
+    }
+
+    fn to_bytes(&'_ self) -> std::borrow::Cow<'_, [u8]> {
+        Cow::Borrowed(self.as_bytes())
     }
 }
 

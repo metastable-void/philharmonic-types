@@ -1,16 +1,26 @@
+use crate::Content;
+
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, marker::PhantomData};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Sha256(#[serde(with = "hex_bytes")] pub [u8; 32]);
+pub struct Sha256<T: Content> (
+    #[serde(with = "hex_bytes")] [u8; 32],
+    #[serde(skip)] PhantomData<fn() -> T>,
+);
 
-impl Sha256 {
-    pub fn of(bytes: &[u8]) -> Self {
+impl<T: Content> Sha256<T> {
+    pub const fn new(hash: [u8; 32]) -> Self {
+        Self (hash, PhantomData)
+    }
+
+    pub fn of(content: &T) -> Self {
         use sha2::{Digest, Sha256 as Hasher};
+        let bytes = content.to_bytes();
         let mut h = Hasher::new();
         h.update(bytes);
-        Self(h.finalize().into())
+        Self(h.finalize().into(), PhantomData)
     }
 
     pub const fn as_bytes(&self) -> &[u8; 32] {
@@ -18,13 +28,13 @@ impl Sha256 {
     }
 }
 
-impl fmt::Debug for Sha256 {
+impl<T: Content> fmt::Debug for Sha256<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "sha256:{}", hex::encode(&self.0[..8]))
     }
 }
 
-impl fmt::Display for Sha256 {
+impl<T: Content> fmt::Display for Sha256<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::encode(self.0))
     }
@@ -64,13 +74,13 @@ pub(crate) mod hex_bytes {
     }
 }
 
-impl AsRef<[u8]> for Sha256 {
+impl<T: Content> AsRef<[u8]> for Sha256<T> {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
 
-impl AsRef<[u8; 32]> for Sha256 {
+impl<T: Content> AsRef<[u8; 32]> for Sha256<T> {
     fn as_ref(&self) -> &[u8; 32] {
         &self.0
     }
