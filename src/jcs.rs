@@ -58,3 +58,9 @@ impl<'de> Deserialize<'de> for CanonicalJson {
         Self::from_value(&v).map_err(serde::de::Error::custom)
     }
 }
+
+impl AsRef<[u8]> for CanonicalJson {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}

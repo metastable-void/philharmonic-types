@@ -167,3 +167,15 @@ impl<'de, T: ?Sized> Deserialize<'de> for PublicId<T> {
         Self::from_uuid(uuid).map_err(serde::de::Error::custom)
     }
 }
+
+impl<T: ?Sized, const KIND: u8> AsRef<[u8]> for Id<T, KIND> {
+    fn as_ref(&self) -> &[u8] {
+        self.uuid.as_bytes()
+    }
+}
+
+impl<T: ?Sized, const KIND: u8> AsRef<[u8; 16]> for Id<T, KIND> {
+    fn as_ref(&self) -> &[u8; 16] {
+        self.uuid.as_bytes()
+    }
+}

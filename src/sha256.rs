@@ -63,3 +63,15 @@ pub(crate) mod hex_bytes {
         d.deserialize_str(HexVisitor::<L>)
     }
 }
+
+impl AsRef<[u8]> for Sha256 {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsRef<[u8; 32]> for Sha256 {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
