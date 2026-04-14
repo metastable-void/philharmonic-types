@@ -1,6 +1,6 @@
 [package]
 name = "philharmonic-types"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 description = "Cornerstone types for the Philharmonic workflow orchestration system: content-addressed JSON, phantom-typed UUID identities, SHA-256 hashes, and millis-since-epoch timestamps."
