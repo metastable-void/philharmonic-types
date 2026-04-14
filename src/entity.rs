@@ -1,6 +1,6 @@
 use crate::{InternalId, PublicId};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
 use uuid::Uuid;
 
 use std::marker::PhantomData;
@@ -122,7 +122,6 @@ impl ScalarSlot {
 pub enum ScalarType {
     Bool,
     I64,
-    Str,
 }
 
 /// A scalar value stored in or read from a scalar slot.
@@ -240,4 +239,16 @@ pub enum IdentityKindError {
     Internal(crate::IdKindError),
     #[error("public ID is not UUIDv4: {0}")]
     Public(crate::IdKindError),
+}
+
+impl<T: ?Sized + Entity> Serialize for EntityId<T> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.untyped().serialize(s)
+    }
+}
+
+impl<'de, T: ?Sized + Entity> Deserialize<'de> for EntityId<T> {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        Identity::deserialize(d)?.typed().map_err(serde::de::Error::custom)
+    }
 }

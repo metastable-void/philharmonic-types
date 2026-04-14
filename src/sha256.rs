@@ -8,7 +8,7 @@ pub struct Sha256 (
 );
 
 impl Sha256 {
-    pub const fn new(hash: [u8; 32]) -> Self {
+    pub const fn from_bytes_unchecked(hash: [u8; 32]) -> Self {
         Self (hash)
     }
 
