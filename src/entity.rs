@@ -175,13 +175,13 @@ impl Identity {
 /// indicating the entity kind. Cannot be constructed without going through
 /// either a fresh mint (via the storage layer) or a validated promotion
 /// from `Identity`.
-pub struct EntityId<T: ?Sized + Entity> {
+pub struct EntityId<T: Entity> {
     internal: InternalId<T>,
     public: PublicId<T>,
     _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: ?Sized + Entity> EntityId<T> {
+impl<T: Entity> EntityId<T> {
     /// The internal (UUIDv7) ID.
     pub fn internal(&self) -> InternalId<T> {
         self.internal
@@ -202,14 +202,14 @@ impl<T: ?Sized + Entity> EntityId<T> {
 }
 
 // Manual impls because PhantomData<fn() -> T> doesn't constrain T.
-impl<T: ?Sized + Entity> Clone for EntityId<T> {
+impl<T: Entity> Clone for EntityId<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: ?Sized + Entity> Copy for EntityId<T> {}
+impl<T: Entity> Copy for EntityId<T> {}
 
-impl<T: ?Sized + Entity> PartialEq for EntityId<T> {
+impl<T: Entity> PartialEq for EntityId<T> {
     fn eq(&self, other: &Self) -> bool {
         // Comparing internal IDs is sufficient; public IDs are derived
         // (in the sense that the pair is minted together and one implies
@@ -217,15 +217,15 @@ impl<T: ?Sized + Entity> PartialEq for EntityId<T> {
         self.internal == other.internal
     }
 }
-impl<T: ?Sized + Entity> Eq for EntityId<T> {}
+impl<T: Entity> Eq for EntityId<T> {}
 
-impl<T: ?Sized + Entity> std::hash::Hash for EntityId<T> {
+impl<T: Entity> std::hash::Hash for EntityId<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.internal.hash(state);
     }
 }
 
-impl<T: ?Sized + Entity> std::fmt::Debug for EntityId<T> {
+impl<T: Entity> std::fmt::Debug for EntityId<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "EntityId<{}>({})", T::NAME, self.internal.as_uuid())
     }
@@ -239,13 +239,13 @@ pub enum IdentityKindError {
     Public(crate::IdKindError),
 }
 
-impl<T: ?Sized + Entity> Serialize for EntityId<T> {
+impl<T: Entity> Serialize for EntityId<T> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         self.untyped().serialize(s)
     }
 }
 
-impl<'de, T: ?Sized + Entity> Deserialize<'de> for EntityId<T> {
+impl<'de, T: Entity> Deserialize<'de> for EntityId<T> {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         Identity::deserialize(d)?
             .typed()

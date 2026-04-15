@@ -49,12 +49,12 @@ pub trait Content: Sized {
 /// for this system; code that doesn't care about the hash function can
 /// write `ContentHash<T>` and get SHA-256 implicitly.
 #[repr(transparent)]
-pub struct ContentHash<T: ?Sized + Content, F: HashFunction = Sha256> {
+pub struct ContentHash<T: Content, F: HashFunction = Sha256> {
     digest: F::Output,
     _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: ?Sized + Content, F: HashFunction> ContentHash<T, F> {
+impl<T: Content, F: HashFunction> ContentHash<T, F> {
     /// Compute the hash of a content value.
     pub fn of(content: &T) -> Self
     where
@@ -99,27 +99,27 @@ impl<T: ?Sized + Content, F: HashFunction> ContentHash<T, F> {
 // Manual impls: can't derive Clone/Copy/Eq/Hash directly because
 // PhantomData<fn() -> T> doesn't constrain them, and we want the impls
 // regardless of what T is.
-impl<T: ?Sized + Content, F: HashFunction> Clone for ContentHash<T, F> {
+impl<T: Content, F: HashFunction> Clone for ContentHash<T, F> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: ?Sized + Content, F: HashFunction> Copy for ContentHash<T, F> {}
+impl<T: Content, F: HashFunction> Copy for ContentHash<T, F> {}
 
-impl<T: ?Sized + Content, F: HashFunction> PartialEq for ContentHash<T, F> {
+impl<T: Content, F: HashFunction> PartialEq for ContentHash<T, F> {
     fn eq(&self, other: &Self) -> bool {
         self.digest == other.digest
     }
 }
-impl<T: ?Sized + Content, F: HashFunction> Eq for ContentHash<T, F> {}
+impl<T: Content, F: HashFunction> Eq for ContentHash<T, F> {}
 
-impl<T: ?Sized + Content, F: HashFunction> std::hash::Hash for ContentHash<T, F> {
+impl<T: Content, F: HashFunction> std::hash::Hash for ContentHash<T, F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.digest.hash(state);
     }
 }
 
-impl<T: ?Sized + Content, F: HashFunction> fmt::Debug for ContentHash<T, F>
+impl<T: Content, F: HashFunction> fmt::Debug for ContentHash<T, F>
 where
     F::Output: fmt::Debug,
 {
@@ -131,7 +131,7 @@ where
 // Serialization is transparent over the digest: a ContentHash<T, F> on the
 // wire looks exactly like an F::Output, because the T tag is compile-time
 // information only.
-impl<T: ?Sized + Content, F: HashFunction> Serialize for ContentHash<T, F>
+impl<T: Content, F: HashFunction> Serialize for ContentHash<T, F>
 where
     F::Output: Serialize,
 {
@@ -140,7 +140,7 @@ where
     }
 }
 
-impl<'de, T: ?Sized + Content, F: HashFunction> Deserialize<'de> for ContentHash<T, F>
+impl<'de, T: Content, F: HashFunction> Deserialize<'de> for ContentHash<T, F>
 where
     F::Output: Deserialize<'de>,
 {
