@@ -3,6 +3,7 @@ use crate::{Content, ContentDecodeError, ContentHash, Sha256};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 
 pub use serde_json::Value as JsonValue;
+pub use serde_json::Map as JsonMap;
 
 use std::borrow::Cow;
 
