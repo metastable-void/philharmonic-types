@@ -147,7 +147,7 @@ impl<T: ?Sized> PublicId<T> {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 #[error("UUID version mismatch: expected v{expected}, got v{actual}")]
 pub struct IdKindError {
     pub expected: usize,

@@ -2,8 +2,8 @@ use crate::{Content, ContentDecodeError, ContentHash, Sha256};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 
-pub use serde_json::Value as JsonValue;
 pub use serde_json::Map as JsonMap;
+pub use serde_json::Value as JsonValue;
 
 use std::borrow::Cow;
 
@@ -120,8 +120,8 @@ impl std::hash::Hash for CanonicalJson {
 impl Serialize for CanonicalJson {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         // The bytes are valid JSON by construction.
-        let value: JsonValue = serde_json::from_slice(&self.0)
-            .map_err(serde::ser::Error::custom)?;
+        let value: JsonValue =
+            serde_json::from_slice(&self.0).map_err(serde::ser::Error::custom)?;
         value.serialize(s)
     }
 }

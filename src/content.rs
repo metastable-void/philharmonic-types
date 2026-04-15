@@ -84,7 +84,10 @@ impl<T: ?Sized + Content, F: HashFunction> ContentHash<T, F> {
     /// validly encode `T`. Used when reading typed hashes back from
     /// trusted storage.
     pub fn from_digest_unchecked(digest: F::Output) -> Self {
-        Self { digest, _phantom: PhantomData }
+        Self {
+            digest,
+            _phantom: PhantomData,
+        }
     }
 
     /// The underlying digest, stripped of its content-type tag.
@@ -97,7 +100,9 @@ impl<T: ?Sized + Content, F: HashFunction> ContentHash<T, F> {
 // PhantomData<fn() -> T> doesn't constrain them, and we want the impls
 // regardless of what T is.
 impl<T: ?Sized + Content, F: HashFunction> Clone for ContentHash<T, F> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl<T: ?Sized + Content, F: HashFunction> Copy for ContentHash<T, F> {}
 
@@ -167,7 +172,10 @@ impl ContentValue {
     /// Construct a `ContentValue` from raw bytes, computing the hash.
     pub fn new(bytes: Vec<u8>) -> Self {
         let hash = Sha256::of(&bytes);
-        Self { digest: hash, bytes }
+        Self {
+            digest: hash,
+            bytes,
+        }
     }
 
     /// Construct a `ContentValue` from bytes and a pre-computed hash,
@@ -176,7 +184,10 @@ impl ContentValue {
     /// Used when reading from a trusted content store that has already
     /// verified the invariant on write.
     pub fn from_parts_unchecked(hash: Sha256, bytes: Vec<u8>) -> Self {
-        Self { digest: hash, bytes }
+        Self {
+            digest: hash,
+            bytes,
+        }
     }
 
     pub fn digest(&self) -> Sha256 {

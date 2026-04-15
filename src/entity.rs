@@ -1,6 +1,6 @@
 use crate::{InternalId, PublicId};
 
-use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
 use std::marker::PhantomData;
@@ -159,10 +159,8 @@ impl Identity {
     /// Promote this untyped identity to a typed `EntityId<T>`,
     /// validating that the UUIDs have the expected versions.
     pub fn typed<T: Entity>(self) -> Result<EntityId<T>, IdentityKindError> {
-        let internal = InternalId::from_uuid(self.internal)
-            .map_err(IdentityKindError::Internal)?;
-        let public = PublicId::from_uuid(self.public)
-            .map_err(IdentityKindError::Public)?;
+        let internal = InternalId::from_uuid(self.internal).map_err(IdentityKindError::Internal)?;
+        let public = PublicId::from_uuid(self.public).map_err(IdentityKindError::Public)?;
         Ok(EntityId {
             internal,
             public,
@@ -233,7 +231,7 @@ impl<T: ?Sized + Entity> std::fmt::Debug for EntityId<T> {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum IdentityKindError {
     #[error("internal ID is not UUIDv7: {0}")]
     Internal(crate::IdKindError),
@@ -249,6 +247,8 @@ impl<T: ?Sized + Entity> Serialize for EntityId<T> {
 
 impl<'de, T: ?Sized + Entity> Deserialize<'de> for EntityId<T> {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        Identity::deserialize(d)?.typed().map_err(serde::de::Error::custom)
+        Identity::deserialize(d)?
+            .typed()
+            .map_err(serde::de::Error::custom)
     }
 }

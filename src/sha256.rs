@@ -3,13 +3,11 @@ use std::fmt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Sha256 (
-    #[serde(with = "hex_bytes")] [u8; 32],
-);
+pub struct Sha256(#[serde(with = "hex_bytes")] [u8; 32]);
 
 impl Sha256 {
     pub const fn from_bytes_unchecked(hash: [u8; 32]) -> Self {
-        Self (hash)
+        Self(hash)
     }
 
     pub fn of(bytes: &[u8]) -> Self {
