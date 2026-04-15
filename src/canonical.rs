@@ -2,6 +2,8 @@ use crate::{Content, ContentDecodeError, ContentHash, Sha256};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 
+pub use serde_json::Value as JsonValue;
+
 use std::borrow::Cow;
 
 /// Canonical JSON bytes per RFC 8785 (JCS).
@@ -19,8 +21,8 @@ use std::borrow::Cow;
 pub struct CanonicalJson(Vec<u8>);
 
 impl CanonicalJson {
-    /// Canonicalize a `serde_json::Value` via JCS and store the resulting bytes.
-    pub fn from_value(v: &serde_json::Value) -> Result<Self, CanonError> {
+    /// Canonicalize a `JsonValue` via JCS and store the resulting bytes.
+    pub fn from_value(v: &JsonValue) -> Result<Self, CanonError> {
         let bytes = serde_jcs::to_vec(v)?;
         Ok(Self(bytes))
     }
@@ -29,7 +31,7 @@ impl CanonicalJson {
     ///
     /// The input bytes need not be canonical; the output always is.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CanonError> {
-        let v: serde_json::Value = serde_json::from_slice(bytes)?;
+        let v: JsonValue = serde_json::from_slice(bytes)?;
         Self::from_value(&v)
     }
 
@@ -117,7 +119,7 @@ impl std::hash::Hash for CanonicalJson {
 impl Serialize for CanonicalJson {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         // The bytes are valid JSON by construction.
-        let value: serde_json::Value = serde_json::from_slice(&self.0)
+        let value: JsonValue = serde_json::from_slice(&self.0)
             .map_err(serde::ser::Error::custom)?;
         value.serialize(s)
     }
@@ -131,7 +133,7 @@ impl Serialize for CanonicalJson {
 /// regardless of the sender's serialization choices.
 impl<'de> Deserialize<'de> for CanonicalJson {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let value = serde_json::Value::deserialize(d)?;
+        let value = JsonValue::deserialize(d)?;
         Self::from_value(&value).map_err(serde::de::Error::custom)
     }
 }

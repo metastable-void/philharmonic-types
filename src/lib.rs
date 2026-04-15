@@ -8,7 +8,7 @@ pub(crate) mod entity;
 pub use sha256::Sha256;
 
 pub use id::{Id, IdKindError, InternalId, PublicId};
-pub use canonical::{CanonError, CanonicalJson};
+pub use canonical::{CanonError, CanonicalJson, JsonValue};
 pub use timestamp::UnixMillis;
 pub use uuid::Uuid;
 pub use content::*;
