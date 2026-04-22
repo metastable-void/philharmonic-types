@@ -239,3 +239,148 @@ pub enum ContentDecodeError {
     #[error("content decode failed: {0}")]
     Custom(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Minimal Content impl so we can exercise the trait surface without
+    // pulling in crate::canonical (which brings JSON semantics).
+    #[derive(Debug, PartialEq, Eq)]
+    struct BytesBag(Vec<u8>);
+
+    impl Content for BytesBag {
+        fn to_content_bytes(&self) -> Cow<'_, [u8]> {
+            Cow::Borrowed(&self.0)
+        }
+
+        fn from_content_bytes(bytes: &[u8]) -> Result<Self, ContentDecodeError> {
+            Ok(Self(bytes.to_vec()))
+        }
+    }
+
+    #[test]
+    fn content_value_new_computes_sha256() {
+        let val = ContentValue::new(b"hello".to_vec());
+        assert_eq!(val.digest(), Sha256::of(b"hello"));
+        assert_eq!(val.bytes(), b"hello");
+    }
+
+    #[test]
+    fn content_value_from_parts_unchecked_skips_verification() {
+        // The point of `from_parts_unchecked` is that it trusts the caller.
+        // We prove that by feeding it a bogus hash.
+        let fake = Sha256::of(b"lies");
+        let val = ContentValue::from_parts_unchecked(fake, b"truth".to_vec());
+        assert_eq!(val.digest(), fake);
+        assert_ne!(val.digest(), Sha256::of(val.bytes()));
+    }
+
+    #[test]
+    fn content_value_into_bytes_consumes() {
+        let val = ContentValue::new(b"payload".to_vec());
+        assert_eq!(val.into_bytes(), b"payload");
+    }
+
+    #[test]
+    fn content_value_decode_round_trips() {
+        let original = BytesBag(b"payload".to_vec());
+        let val: ContentValue = (&original).into();
+        let back: BytesBag = val.decode().unwrap();
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn content_value_content_impl_wraps_new() {
+        let raw = b"hello".to_vec();
+        let via_trait = <ContentValue as Content>::from_content_bytes(&raw).unwrap();
+        let direct = ContentValue::new(raw.clone());
+        assert_eq!(via_trait.bytes(), direct.bytes());
+        assert_eq!(via_trait.digest(), direct.digest());
+    }
+
+    #[test]
+    fn content_hash_of_matches_of_bytes_unchecked_for_same_bytes() {
+        let c = BytesBag(b"payload".to_vec());
+        let from_content = ContentHash::<BytesBag>::of(&c);
+        let from_bytes = ContentHash::<BytesBag>::of_bytes_unchecked(b"payload");
+        assert_eq!(from_content, from_bytes);
+    }
+
+    #[test]
+    fn content_hash_as_digest_unwraps_phantom_tag() {
+        let c = BytesBag(b"payload".to_vec());
+        let hash = ContentHash::<BytesBag>::of(&c);
+        assert_eq!(hash.as_digest(), Sha256::of(b"payload"));
+    }
+
+    #[test]
+    fn content_hash_from_digest_unchecked_wraps_arbitrary_digest() {
+        let digest = Sha256::of(b"anything");
+        let wrapped = ContentHash::<BytesBag>::from_digest_unchecked(digest);
+        assert_eq!(wrapped.as_digest(), digest);
+    }
+
+    #[test]
+    fn content_hash_serde_is_transparent_over_digest() {
+        let digest = Sha256::of(b"payload");
+        let hash = ContentHash::<BytesBag>::from_digest_unchecked(digest);
+        let json = serde_json::to_string(&hash).unwrap();
+        let direct = serde_json::to_string(&digest).unwrap();
+        assert_eq!(json, direct);
+        let back: ContentHash<BytesBag> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, hash);
+    }
+
+    #[test]
+    fn content_hash_equality_is_digest_equality() {
+        let a = ContentHash::<BytesBag>::of_bytes_unchecked(b"hello");
+        let b = ContentHash::<BytesBag>::of_bytes_unchecked(b"hello");
+        assert_eq!(a, b);
+        let c = ContentHash::<BytesBag>::of_bytes_unchecked(b"world");
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn content_hash_is_copy_and_clone() {
+        let a = ContentHash::<BytesBag>::of_bytes_unchecked(b"hello");
+        let copied = a;
+        let cloned = Clone::clone(&a);
+        assert_eq!(a, copied);
+        assert_eq!(a, cloned);
+    }
+
+    #[test]
+    fn content_hash_hash_matches_digest_hash() {
+        use std::collections::HashSet;
+        let a = ContentHash::<BytesBag>::of_bytes_unchecked(b"hello");
+        let b = ContentHash::<BytesBag>::of_bytes_unchecked(b"hello");
+        let mut set = HashSet::new();
+        set.insert(a);
+        assert!(set.contains(&b));
+    }
+
+    #[test]
+    fn content_decode_error_utf8_displays_usefully() {
+        // Built via Vec<u8> so the input isn't a compile-time literal —
+        // clippy::invalid_from_utf8 rejects literals that are
+        // statically-detectable invalid UTF-8.
+        let bad_bytes: Vec<u8> = vec![0xff, 0xfe];
+        let utf8_err = std::str::from_utf8(&bad_bytes).unwrap_err();
+        let err: ContentDecodeError = utf8_err.into();
+        assert!(format!("{err}").contains("not valid UTF-8"));
+    }
+
+    #[test]
+    fn content_decode_error_json_displays_usefully() {
+        let json_err = serde_json::from_slice::<serde_json::Value>(b"not json").unwrap_err();
+        let err: ContentDecodeError = json_err.into();
+        assert!(format!("{err}").contains("not valid JSON"));
+    }
+
+    #[test]
+    fn content_decode_error_custom_displays_message() {
+        let err = ContentDecodeError::Custom("something broke".to_string());
+        assert_eq!(format!("{err}"), "content decode failed: something broke");
+    }
+}

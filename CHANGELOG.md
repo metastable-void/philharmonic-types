@@ -9,6 +9,24 @@ this crate adheres to
 
 ## [Unreleased]
 
+## [0.3.4]
+
+Testing pass — 93 colocated unit tests added across every
+source module (SHA-256 known-answer vectors, ID version
+validation and cross-marker equality, UnixMillis serde and
+ordering, JCS canonicalization key-sort + nested-recursion,
+ContentHash / ContentValue trait round-trips,
+EntityId / Identity version-validation and serde, ScalarValue
+tagged-form serde). No public API changes.
+
+Non-API notes:
+
+- The `UnixMillis::now()` tests that call `SystemTime::now()`
+  are gated with `#[cfg(not(miri))]` so `./scripts/miri-test.sh
+  philharmonic-types` runs clean by default (91 tests, 0 UB).
+  Full coverage under miri still possible with
+  `MIRIFLAGS=-Zmiri-disable-isolation`.
+
 ## [0.3.3]
 
 Current published baseline. Git history is the authoritative

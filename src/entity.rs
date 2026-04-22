@@ -252,3 +252,239 @@ impl<'de, T: Entity> Deserialize<'de> for EntityId<T> {
             .map_err(serde::de::Error::custom)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    // Two disjoint test entity kinds for slot-of-T and Debug-NAME checks.
+    struct TestKind;
+    impl Entity for TestKind {
+        const KIND: Uuid = uuid::uuid!("00000000-0000-0000-0000-000000000001");
+        const NAME: &'static str = "test_kind";
+        const CONTENT_SLOTS: &'static [ContentSlot] = &[];
+        const ENTITY_SLOTS: &'static [EntitySlot] = &[];
+        const SCALAR_SLOTS: &'static [ScalarSlot] = &[];
+    }
+
+    struct OtherKind;
+    impl Entity for OtherKind {
+        const KIND: Uuid = uuid::uuid!("00000000-0000-0000-0000-000000000002");
+        const NAME: &'static str = "other_kind";
+        const CONTENT_SLOTS: &'static [ContentSlot] = &[];
+        const ENTITY_SLOTS: &'static [EntitySlot] = &[];
+        const SCALAR_SLOTS: &'static [ScalarSlot] = &[];
+    }
+
+    // ------- Slot value-type tests -------
+
+    #[test]
+    fn content_slot_new_captures_name() {
+        let slot = ContentSlot::new("display_name");
+        assert_eq!(slot.name, "display_name");
+    }
+
+    #[test]
+    fn entity_slot_of_captures_target_kind_and_pinning() {
+        let slot = EntitySlot::of::<TestKind>("tenant", SlotPinning::Pinned);
+        assert_eq!(slot.name, "tenant");
+        assert_eq!(slot.target_kind, TestKind::KIND);
+        assert_eq!(slot.pinning, SlotPinning::Pinned);
+    }
+
+    #[test]
+    fn entity_slot_of_different_kinds_captures_different_target_kinds() {
+        let test = EntitySlot::of::<TestKind>("x", SlotPinning::Latest);
+        let other = EntitySlot::of::<OtherKind>("x", SlotPinning::Latest);
+        assert_ne!(test.target_kind, other.target_kind);
+    }
+
+    #[test]
+    fn scalar_slot_new_captures_all_fields() {
+        let slot = ScalarSlot::new("flag", ScalarType::Bool, true);
+        assert_eq!(slot.name, "flag");
+        assert_eq!(slot.ty, ScalarType::Bool);
+        assert!(slot.indexed);
+
+        let slot = ScalarSlot::new("count", ScalarType::I64, false);
+        assert_eq!(slot.ty, ScalarType::I64);
+        assert!(!slot.indexed);
+    }
+
+    #[test]
+    fn slot_pinning_equality() {
+        assert_eq!(SlotPinning::Pinned, SlotPinning::Pinned);
+        assert_ne!(SlotPinning::Pinned, SlotPinning::Latest);
+    }
+
+    // ------- ScalarValue tests -------
+
+    #[test]
+    fn scalar_value_ty_matches_variant() {
+        assert_eq!(ScalarValue::Bool(true).ty(), ScalarType::Bool);
+        assert_eq!(ScalarValue::I64(42).ty(), ScalarType::I64);
+    }
+
+    #[test]
+    fn scalar_value_bool_serde_round_trip() {
+        let v = ScalarValue::Bool(true);
+        let json = serde_json::to_string(&v).unwrap();
+        assert_eq!(json, r#"{"type":"bool","value":true}"#);
+        let back: ScalarValue = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, v);
+    }
+
+    #[test]
+    fn scalar_value_i64_serde_round_trip() {
+        let v = ScalarValue::I64(-7);
+        let json = serde_json::to_string(&v).unwrap();
+        assert_eq!(json, r#"{"type":"i64","value":-7}"#);
+        let back: ScalarValue = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, v);
+    }
+
+    #[test]
+    fn scalar_value_rejects_unknown_tag() {
+        let json = r#"{"type":"string","value":"nope"}"#;
+        let result: Result<ScalarValue, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    // ------- Identity / EntityId tests -------
+
+    fn make_identity() -> Identity {
+        Identity {
+            internal: Uuid::now_v7(),
+            public: Uuid::new_v4(),
+        }
+    }
+
+    #[test]
+    fn identity_typed_validates_both_versions() {
+        let identity = make_identity();
+        let typed: EntityId<TestKind> = identity.typed().unwrap();
+        assert_eq!(typed.untyped(), identity);
+    }
+
+    #[test]
+    fn identity_typed_rejects_wrong_internal_version() {
+        let bad = Identity {
+            internal: Uuid::new_v4(), // v4, not v7
+            public: Uuid::new_v4(),
+        };
+        let result: Result<EntityId<TestKind>, _> = bad.typed();
+        assert!(matches!(result, Err(IdentityKindError::Internal(_))));
+    }
+
+    #[test]
+    fn identity_typed_rejects_wrong_public_version() {
+        let bad = Identity {
+            internal: Uuid::now_v7(),
+            public: Uuid::now_v7(), // v7, not v4
+        };
+        let result: Result<EntityId<TestKind>, _> = bad.typed();
+        assert!(matches!(result, Err(IdentityKindError::Public(_))));
+    }
+
+    #[test]
+    fn entity_id_internal_and_public_accessors() {
+        let identity = make_identity();
+        let typed: EntityId<TestKind> = identity.typed().unwrap();
+        assert_eq!(typed.internal().as_uuid(), identity.internal);
+        assert_eq!(typed.public().as_uuid(), identity.public);
+    }
+
+    #[test]
+    fn entity_id_debug_includes_kind_name() {
+        let typed: EntityId<TestKind> = make_identity().typed().unwrap();
+        let debug = format!("{typed:?}");
+        assert!(debug.starts_with("EntityId<test_kind>("));
+    }
+
+    #[test]
+    fn entity_id_eq_compares_internal_only() {
+        let internal = Uuid::now_v7();
+        let a = Identity {
+            internal,
+            public: Uuid::new_v4(),
+        }
+        .typed::<TestKind>()
+        .unwrap();
+        let b = Identity {
+            internal,
+            public: Uuid::new_v4(),
+        }
+        .typed::<TestKind>()
+        .unwrap();
+        // Documented behavior: PartialEq compares internal IDs only.
+        // Two EntityId<T> values with identical internal but different
+        // public compare equal.
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn entity_id_hash_uses_internal() {
+        let internal = Uuid::now_v7();
+        let a = Identity {
+            internal,
+            public: Uuid::new_v4(),
+        }
+        .typed::<TestKind>()
+        .unwrap();
+        let b = Identity {
+            internal,
+            public: Uuid::new_v4(),
+        }
+        .typed::<TestKind>()
+        .unwrap();
+        let mut set = HashSet::new();
+        set.insert(a);
+        assert!(set.contains(&b));
+    }
+
+    #[test]
+    fn entity_id_serde_round_trip() {
+        let typed: EntityId<TestKind> = make_identity().typed().unwrap();
+        let json = serde_json::to_string(&typed).unwrap();
+        // Serializes as Identity — object with `internal` and `public` keys.
+        assert!(json.contains("\"internal\":"));
+        assert!(json.contains("\"public\":"));
+        let back: EntityId<TestKind> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, typed);
+    }
+
+    #[test]
+    fn entity_id_deserialize_rejects_wrong_internal_version() {
+        let bad = Identity {
+            internal: Uuid::new_v4(), // wrong version
+            public: Uuid::new_v4(),
+        };
+        let json = serde_json::to_string(&bad).unwrap();
+        let result: Result<EntityId<TestKind>, _> = serde_json::from_str(&json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn entity_id_copy_and_clone_work() {
+        let typed: EntityId<TestKind> = make_identity().typed().unwrap();
+        let copied = typed;
+        let cloned = Clone::clone(&typed);
+        assert_eq!(typed, copied);
+        assert_eq!(typed, cloned);
+    }
+
+    #[test]
+    fn identity_kind_error_variants_display() {
+        let internal_err = IdentityKindError::Internal(crate::IdKindError {
+            expected: 7,
+            actual: 4,
+        });
+        let public_err = IdentityKindError::Public(crate::IdKindError {
+            expected: 4,
+            actual: 7,
+        });
+        assert!(format!("{internal_err}").contains("internal"));
+        assert!(format!("{public_err}").contains("public"));
+    }
+}

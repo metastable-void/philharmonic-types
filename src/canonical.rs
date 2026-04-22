@@ -165,3 +165,140 @@ impl From<CanonError> for ContentDecodeError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_value_sorts_top_level_keys() {
+        let v: JsonValue = serde_json::from_str(r#"{"b":1,"a":2}"#).unwrap();
+        let canon = CanonicalJson::from_value(&v).unwrap();
+        assert_eq!(canon.as_bytes(), br#"{"a":2,"b":1}"#);
+    }
+
+    #[test]
+    fn from_bytes_normalizes_whitespace_and_key_order() {
+        let input = br#"{"z": 1,   "a":   2}"#;
+        let canon = CanonicalJson::from_bytes(input).unwrap();
+        assert_eq!(canon.as_bytes(), br#"{"a":2,"z":1}"#);
+    }
+
+    #[test]
+    fn nested_objects_canonicalize_recursively() {
+        let canon = CanonicalJson::from_bytes(br#"{"outer":{"z":1,"a":2}}"#).unwrap();
+        assert_eq!(canon.as_bytes(), br#"{"outer":{"a":2,"z":1}}"#);
+    }
+
+    #[test]
+    fn arrays_preserve_order_but_canonicalize_members() {
+        let canon = CanonicalJson::from_bytes(br#"[{"b":1,"a":2},{"d":3,"c":4}]"#).unwrap();
+        assert_eq!(canon.as_bytes(), br#"[{"a":2,"b":1},{"c":4,"d":3}]"#);
+    }
+
+    #[test]
+    fn digest_is_stable_across_sender_key_orders() {
+        let a = CanonicalJson::from_bytes(br#"{"b":1,"a":2}"#).unwrap();
+        let b = CanonicalJson::from_bytes(br#"{"a":2,"b":1}"#).unwrap();
+        assert_eq!(a.digest(), b.digest());
+    }
+
+    #[test]
+    fn content_hash_matches_digest() {
+        let canon = CanonicalJson::from_bytes(br#"{"a":1}"#).unwrap();
+        assert_eq!(canon.content_hash().as_digest(), canon.digest());
+    }
+
+    #[test]
+    fn eq_is_byte_equality_under_canonicalization() {
+        let a = CanonicalJson::from_bytes(br#"{"x":1}"#).unwrap();
+        let b = CanonicalJson::from_bytes(br#"{  "x":   1   }"#).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn from_serializable_round_trips_typed_value() {
+        #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+        struct Shape {
+            z: i32,
+            a: String,
+        }
+        let original = Shape {
+            z: 1,
+            a: "hello".to_string(),
+        };
+        let canon = CanonicalJson::from_serializable(&original).unwrap();
+        // Keys must come out alphabetized: a then z.
+        assert_eq!(canon.as_bytes(), br#"{"a":"hello","z":1}"#);
+        let back: Shape = canon.to_deserializable().unwrap();
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn from_bytes_rejects_non_json() {
+        let result = CanonicalJson::from_bytes(b"not json");
+        assert!(matches!(result, Err(CanonError::Json(_))));
+    }
+
+    #[test]
+    fn from_bytes_rejects_trailing_garbage() {
+        let result = CanonicalJson::from_bytes(br#"{"a":1} extra"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn serialize_emits_json_value_not_byte_array() {
+        let canon = CanonicalJson::from_bytes(br#"{"a":1}"#).unwrap();
+        let as_json = serde_json::to_string(&canon).unwrap();
+        // Must appear as `{"a":1}`, not `[123, 34, 97, ...]`.
+        assert_eq!(as_json, r#"{"a":1}"#);
+    }
+
+    #[test]
+    fn deserialize_canonicalizes_sender_order() {
+        let json = r#"{"z":1,"a":2}"#;
+        let canon: CanonicalJson = serde_json::from_str(json).unwrap();
+        assert_eq!(canon.as_bytes(), br#"{"a":2,"z":1}"#);
+    }
+
+    #[test]
+    fn content_trait_round_trips_through_bytes() {
+        let canon = CanonicalJson::from_bytes(br#"{"a":1}"#).unwrap();
+        let bytes = canon.to_content_bytes();
+        let back = CanonicalJson::from_content_bytes(bytes.as_ref()).unwrap();
+        assert_eq!(canon, back);
+    }
+
+    #[test]
+    fn debug_format_renders_as_json_text() {
+        let canon = CanonicalJson::from_bytes(br#"{"a":1}"#).unwrap();
+        assert_eq!(format!("{canon:?}"), r#"CanonicalJson({"a":1})"#);
+    }
+
+    #[test]
+    fn into_bytes_consumes_and_returns_canonical_bytes() {
+        let canon = CanonicalJson::from_bytes(br#"{"a":1}"#).unwrap();
+        assert_eq!(canon.into_bytes(), br#"{"a":1}"#);
+    }
+
+    #[test]
+    fn hash_impl_treats_equal_values_as_equal_keys() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(CanonicalJson::from_bytes(br#"{"b":1,"a":2}"#).unwrap());
+        assert!(set.contains(&CanonicalJson::from_bytes(br#"{"a":2,"b":1}"#).unwrap()));
+    }
+
+    #[test]
+    fn unicode_keys_sort_by_codepoint_order() {
+        // Keys "a" (U+0061), "z" (U+007A), "é" (U+00E9).
+        // Expected JCS order: a, z, é.
+        let canon = CanonicalJson::from_bytes("{\"é\":3,\"z\":2,\"a\":1}".as_bytes()).unwrap();
+        let text = std::str::from_utf8(canon.as_bytes()).unwrap();
+        let a_pos = text.find("\"a\"").unwrap();
+        let z_pos = text.find("\"z\"").unwrap();
+        let e_pos = text.find('é').unwrap();
+        assert!(a_pos < z_pos);
+        assert!(z_pos < e_pos);
+    }
+}
