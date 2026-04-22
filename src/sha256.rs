@@ -35,6 +35,11 @@ impl fmt::Display for Sha256 {
 }
 
 pub(crate) mod hex_bytes {
+    // Human-readable-aware serde: hex text string for JSON / YAML / TOML
+    // (is_human_readable = true), raw byte string for CBOR / other binary
+    // formats (is_human_readable = false). Mirrors the uuid crate's
+    // pattern — the same hash round-trips cleanly through either family
+    // without a compact-encoding wrapper.
     use serde::{Deserializer, Serializer, de::Visitor};
 
     pub struct HexVisitor<const L: usize>;
@@ -54,17 +59,66 @@ pub(crate) mod hex_bytes {
         }
     }
 
+    pub struct BytesVisitor<const L: usize>;
+
+    impl<'de, const L: usize> Visitor<'de> for BytesVisitor<L> {
+        type Value = [u8; L];
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(formatter, "Byte string of length {L} expected")
+        }
+
+        fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            v.try_into().map_err(|_e| E::custom("Length mismatch"))
+        }
+
+        fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            self.visit_bytes(&v)
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            // Some binary formats (e.g. bincode) deserialize byte arrays
+            // as sequences rather than as byte strings.
+            let mut out = [0_u8; L];
+            for (i, slot) in out.iter_mut().enumerate() {
+                *slot = seq
+                    .next_element::<u8>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
+            }
+            if seq.next_element::<u8>()?.is_some() {
+                return Err(serde::de::Error::invalid_length(L + 1, &self));
+            }
+            Ok(out)
+        }
+    }
+
     pub(crate) fn serialize<S: Serializer, const L: usize>(
         bytes: &[u8; L],
         s: S,
     ) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&hex::encode(bytes))
+        if s.is_human_readable() {
+            s.serialize_str(&hex::encode(bytes))
+        } else {
+            s.serialize_bytes(bytes)
+        }
     }
 
     pub(crate) fn deserialize<'de, D: Deserializer<'de>, const L: usize>(
         d: D,
     ) -> Result<[u8; L], D::Error> {
-        d.deserialize_str(HexVisitor::<L>)
+        if d.is_human_readable() {
+            d.deserialize_str(HexVisitor::<L>)
+        } else {
+            d.deserialize_bytes(BytesVisitor::<L>)
+        }
     }
 }
 
@@ -130,6 +184,53 @@ mod tests {
         assert_eq!(json, format!("\"{ABC_HEX}\""));
         let back: Sha256 = serde_json::from_str(&json).unwrap();
         assert_eq!(back, hash);
+    }
+
+    #[test]
+    fn cbor_round_trip_emits_byte_string() {
+        // CBOR is not human-readable → Sha256 must serialize as a
+        // 32-byte byte string (major type 2, wire-efficient).
+        let hash = Sha256::of(b"abc");
+        let mut buf = Vec::new();
+        ciborium::ser::into_writer(&hash, &mut buf).unwrap();
+
+        // Major type 2 with 32-byte payload: initial byte 0x58
+        // (bstr with 1-byte length), then 0x20 (length = 32), then 32
+        // bytes of hash.
+        assert_eq!(buf[0], 0x58, "expected CBOR bstr initial byte");
+        assert_eq!(buf[1], 0x20, "expected CBOR bstr length byte = 32");
+        assert_eq!(&buf[2..], hash.as_bytes());
+        assert_eq!(buf.len(), 34);
+
+        let back: Sha256 = ciborium::de::from_reader(&buf[..]).unwrap();
+        assert_eq!(back, hash);
+    }
+
+    #[test]
+    fn cbor_rejects_wrong_length_byte_string() {
+        // Craft a CBOR bstr of the wrong length (16 bytes instead of 32).
+        let mut buf = vec![0x50]; // bstr, length = 16 (short-form)
+        buf.extend(std::iter::repeat_n(0xAA_u8, 16));
+        let result: Result<Sha256, _> = ciborium::de::from_reader(&buf[..]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cbor_and_json_interoperate_at_value_level() {
+        // Same hash, different serializers — the in-memory value is
+        // identical, only the wire form differs.
+        let hash = Sha256::of(b"philharmonic");
+
+        let json = serde_json::to_string(&hash).unwrap();
+        let via_json: Sha256 = serde_json::from_str(&json).unwrap();
+
+        let mut cbor = Vec::new();
+        ciborium::ser::into_writer(&hash, &mut cbor).unwrap();
+        let via_cbor: Sha256 = ciborium::de::from_reader(&cbor[..]).unwrap();
+
+        assert_eq!(via_json, hash);
+        assert_eq!(via_cbor, hash);
+        assert_eq!(via_json, via_cbor);
     }
 
     #[test]

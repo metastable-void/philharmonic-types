@@ -1,6 +1,6 @@
 [package]
 name = "philharmonic-types"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2024"
 
 description = "Cornerstone types for the Philharmonic workflow orchestration system: content-addressed JSON, phantom-typed UUID identities, SHA-256 hashes, and millis-since-epoch timestamps."
@@ -20,6 +20,10 @@ serde_json = "1"
 sha2 = "0.11"
 thiserror = "2"
 uuid = { version = "1.23", features = ["v4", "v7", "serde"] }
+
+[dev-dependencies]
+# Round-trip test coverage for Sha256's human-readable-aware serde.
+ciborium = "0.2"
 
 [profile.release]
 opt-level = 3
