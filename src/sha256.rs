@@ -1,15 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// A SHA-256 digest.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Sha256(#[serde(with = "hex_bytes")] [u8; 32]);
 
 impl Sha256 {
+    /// Wrap raw digest bytes without re-hashing.
     pub const fn from_bytes_unchecked(hash: [u8; 32]) -> Self {
         Self(hash)
     }
 
+    /// Compute the SHA-256 digest of the given bytes.
     pub fn of(bytes: &[u8]) -> Self {
         use sha2::{Digest, Sha256 as Hasher};
         let mut h = Hasher::new();
@@ -17,6 +20,7 @@ impl Sha256 {
         Self(h.finalize().into())
     }
 
+    /// The raw 32-byte digest.
     pub const fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }

@@ -29,10 +29,12 @@ pub struct Id<T: ?Sized, const KIND: u8> {
 }
 
 impl<T: ?Sized, const KIND: u8> Id<T, KIND> {
+    /// The underlying UUID.
     pub const fn as_uuid(&self) -> Uuid {
         self.uuid
     }
 
+    /// The UUID's raw bytes.
     pub const fn as_bytes(&self) -> &[u8; 16] {
         self.uuid.as_bytes()
     }
@@ -88,12 +90,16 @@ impl<T: ?Sized, const KIND: u8> Hash for Id<T, KIND> {
     }
 }
 
+/// A UUIDv7 internal identifier for time-ordered internal addressing.
 pub type InternalId<T> = Id<T, { KIND_INTERNAL }>;
+/// A UUIDv4 public identifier for opaque external references.
 pub type PublicId<T> = Id<T, { KIND_PUBLIC }>;
 
 impl<T: ?Sized> InternalId<T> {
+    /// The kind discriminant for internal IDs.
     pub const KIND: u8 = KIND_INTERNAL;
 
+    /// Generate a fresh UUIDv7 internal ID.
     pub fn new_v7() -> Self {
         Self {
             uuid: Uuid::now_v7(),
@@ -101,6 +107,7 @@ impl<T: ?Sized> InternalId<T> {
         }
     }
 
+    /// Construct from an existing UUID, validating that it is version 7.
     pub fn from_uuid(uuid: Uuid) -> Result<Self, IdKindError> {
         if uuid.get_version_num() != 7 {
             return Err(IdKindError {
@@ -114,14 +121,17 @@ impl<T: ?Sized> InternalId<T> {
         })
     }
 
+    /// Construct from raw bytes, validating that the UUID is version 7.
     pub fn from_bytes(bytes: [u8; 16]) -> Result<Self, IdKindError> {
         Self::from_uuid(Uuid::from_bytes(bytes))
     }
 }
 
 impl<T: ?Sized> PublicId<T> {
+    /// The kind discriminant for public IDs.
     pub const KIND: u8 = KIND_PUBLIC;
 
+    /// Generate a fresh UUIDv4 public ID.
     pub fn new_v4() -> Self {
         Self {
             uuid: Uuid::new_v4(),
@@ -129,6 +139,7 @@ impl<T: ?Sized> PublicId<T> {
         }
     }
 
+    /// Construct from an existing UUID, validating that it is version 4.
     pub fn from_uuid(uuid: Uuid) -> Result<Self, IdKindError> {
         if uuid.get_version_num() != 4 {
             return Err(IdKindError {
@@ -142,15 +153,19 @@ impl<T: ?Sized> PublicId<T> {
         })
     }
 
+    /// Construct from raw bytes, validating that the UUID is version 4.
     pub fn from_bytes(bytes: [u8; 16]) -> Result<Self, IdKindError> {
         Self::from_uuid(Uuid::from_bytes(bytes))
     }
 }
 
+/// A UUID did not have the expected version.
 #[derive(Debug, thiserror::Error, Clone)]
 #[error("UUID version mismatch: expected v{expected}, got v{actual}")]
 pub struct IdKindError {
+    /// The UUID version that was expected.
     pub expected: usize,
+    /// The UUID version that was actually found.
     pub actual: usize,
 }
 

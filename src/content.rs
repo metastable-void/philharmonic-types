@@ -190,14 +190,17 @@ impl ContentValue {
         }
     }
 
+    /// The SHA-256 digest of this content value's bytes.
     pub fn digest(&self) -> Sha256 {
         self.digest
     }
 
+    /// The raw content bytes.
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
 
+    /// Consume self and return the raw content bytes.
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
@@ -230,12 +233,16 @@ impl Content for ContentValue {
     }
 }
 
+/// Errors arising from decoding content bytes into a typed value.
 #[derive(Debug, thiserror::Error)]
 pub enum ContentDecodeError {
+    /// The content bytes are not valid UTF-8.
     #[error("content bytes are not valid UTF-8: {0}")]
     Utf8(#[from] std::str::Utf8Error),
+    /// The content bytes are not valid JSON.
     #[error("content bytes are not valid JSON: {0}")]
     Json(#[from] serde_json::Error),
+    /// An application-specific decode failure.
     #[error("content decode failed: {0}")]
     Custom(String),
 }

@@ -2,7 +2,9 @@ use crate::{Content, ContentDecodeError, ContentHash, Sha256};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 
+/// Re-export of `serde_json::Map` for canonical JSON map construction.
 pub use serde_json::Map as JsonMap;
+/// Re-export of `serde_json::Value` for canonical JSON value construction.
 pub use serde_json::Value as JsonValue;
 
 use std::borrow::Cow;
@@ -152,8 +154,10 @@ impl Content for CanonicalJson {
     }
 }
 
+/// Errors arising from JCS canonicalization.
 #[derive(Debug, thiserror::Error)]
 pub enum CanonError {
+    /// The input was not valid JSON.
     #[error("invalid JSON: {0}")]
     Json(#[from] serde_json::Error),
 }

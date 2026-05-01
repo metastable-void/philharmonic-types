@@ -42,10 +42,12 @@ pub trait Entity: Sized {
 /// the slot is responsible for knowing what content type to decode it as.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ContentSlot {
+    /// The slot's name, scoped to the entity kind.
     pub name: &'static str,
 }
 
 impl ContentSlot {
+    /// Create a content slot with the given name.
     pub const fn new(name: &'static str) -> Self {
         Self { name }
     }
@@ -59,8 +61,11 @@ impl ContentSlot {
 /// validation by domain code (the storage substrate doesn't enforce it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EntitySlot {
+    /// The slot's name, scoped to the entity kind.
     pub name: &'static str,
+    /// The kind UUID of the target entity kind.
     pub target_kind: Uuid,
+    /// Whether this reference is pinned or tracks the latest revision.
     pub pinning: SlotPinning,
 }
 
@@ -100,12 +105,16 @@ pub enum SlotPinning {
 /// should maintain a secondary index on this scalar for query performance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScalarSlot {
+    /// The slot's name, scoped to the entity kind.
     pub name: &'static str,
+    /// The scalar type of this slot's value.
     pub ty: ScalarType,
+    /// Whether the substrate should maintain a secondary index on this slot.
     pub indexed: bool,
 }
 
 impl ScalarSlot {
+    /// Create a scalar slot with the given name, type, and index flag.
     pub const fn new(name: &'static str, ty: ScalarType, indexed: bool) -> Self {
         Self { name, ty, indexed }
     }
@@ -120,7 +129,9 @@ impl ScalarSlot {
 /// string scalar, the value probably wants a different home.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScalarType {
+    /// Boolean scalar.
     Bool,
+    /// Signed 64-bit integer scalar.
     I64,
 }
 
@@ -128,11 +139,14 @@ pub enum ScalarType {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ScalarValue {
+    /// A boolean scalar value.
     Bool(bool),
+    /// A signed 64-bit integer scalar value.
     I64(i64),
 }
 
 impl ScalarValue {
+    /// Returns the [`ScalarType`] corresponding to this value's variant.
     pub fn ty(&self) -> ScalarType {
         match self {
             Self::Bool(_) => ScalarType::Bool,
@@ -231,10 +245,13 @@ impl<T: Entity> std::fmt::Debug for EntityId<T> {
     }
 }
 
+/// An identity pair's UUID versions did not match expectations.
 #[derive(Debug, thiserror::Error, Clone)]
 pub enum IdentityKindError {
+    /// The internal ID is not UUIDv7.
     #[error("internal ID is not UUIDv7: {0}")]
     Internal(crate::IdKindError),
+    /// The public ID is not UUIDv4.
     #[error("public ID is not UUIDv4: {0}")]
     Public(crate::IdKindError),
 }

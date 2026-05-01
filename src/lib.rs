@@ -1,3 +1,5 @@
+//! Core types for the Philharmonic workflow orchestration system.
+
 pub(crate) mod canonical;
 pub(crate) mod content;
 pub(crate) mod entity;

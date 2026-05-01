@@ -1,10 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+/// Milliseconds since the Unix epoch (1970-01-01T00:00:00Z).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 #[serde(transparent)]
-pub struct UnixMillis(pub i64);
+pub struct UnixMillis(
+    /// The millisecond timestamp value.
+    pub i64,
+);
 
 impl UnixMillis {
+    /// Returns the current time as milliseconds since the Unix epoch.
     pub fn now() -> Self {
         // Narrow-exception panics (workspace CONTRIBUTING.md §10.3 Panics
         // and undefined behavior): both `.expect()` calls document
@@ -19,6 +24,7 @@ impl UnixMillis {
         Self(millis)
     }
 
+    /// The raw `i64` millisecond value.
     pub const fn as_i64(&self) -> i64 {
         self.0
     }
