@@ -35,7 +35,7 @@ https://github.com/metastable-void/philharmonic-workspace
   primitives. `Content<T>` wraps a value + its canonical bytes +
   its hash; `ContentHash<H, T>` is a standalone hash reference
   parameterized on both the hash function and the referenced type.
-- **`EntityKind`** trait + `Entity<K>` — the entity-substrate
+- **`Entity`** trait + `EntityId<T>` — the entity-substrate
   vocabulary (entity kinds, slot shapes, entity references) that
   the storage layer (`philharmonic-store`) and the workflow engine
   (`philharmonic-workflow`) build on.
