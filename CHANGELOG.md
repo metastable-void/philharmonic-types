@@ -9,6 +9,10 @@ this crate adheres to
 
 ## [Unreleased]
 
+## [0.3.6]
+
+- Added doc comments on all public items.
+
 ## [0.3.5]
 
 `Sha256`'s serde impl is now human-readable-aware: hex text
