@@ -1,6 +1,6 @@
 [package]
 name = "philharmonic-types"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2024"
 
 description = "Cornerstone types for the Philharmonic workflow orchestration system: content-addressed JSON, phantom-typed UUID identities, SHA-256 hashes, and millis-since-epoch timestamps."
@@ -13,17 +13,17 @@ keywords = ["uuid", "content-addressed", "workflow", "philharmonic"]
 categories = ["data-structures", "encoding"]
 
 [dependencies]
-hex = "0.4"
-serde = { version = "1", features = ["derive"] }
-serde_jcs = "0.2"
-serde_json = "1"
-sha2 = "0.11"
-thiserror = "2"
-uuid = { version = "1.23", features = ["v4", "v7", "serde"] }
+hex = { version = "0.4", default-features = false, features = ["std"] }
+serde = { version = "1", default-features = false, features = ["derive", "std"] }
+serde_jcs = { version = "0.2", default-features = false, features = [] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+sha2 = { version = "0.11", default-features = false, features = [] }
+thiserror = { version = "2", default-features = false, features = ["std"] }
+uuid = { version = "1.23", default-features = false, features = ["serde", "std", "v4", "v7"] }
 
 [dev-dependencies]
 # Round-trip test coverage for Sha256's human-readable-aware serde.
-ciborium = "0.2"
+ciborium = { version = "0.2", default-features = false, features = ["std"] }
 
 [profile.release]
 opt-level = 3

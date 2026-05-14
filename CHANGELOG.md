@@ -9,6 +9,13 @@ this crate adheres to
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-05-14
+
+### Changed
+- Internal Cargo.toml audit: `default-features = false` set on
+  direct dependencies with explicit feature lists for what the
+  crate actually uses. No behaviour change. (D24)
+
 ## [0.3.6]
 
 - Added doc comments on all public items.
